@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Игра: Планета с Меню</title>
+<style>
+  body, html {
+    margin: 0;
+    padding: 0;
+    background: radial-gradient(ellipse at center, #000011 0%, #000000 80%);
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  canvas {
+    position: absolute;
+    border-radius: 50%;
+    box-shadow: 0 0 40px #00aaff;
+    z-index: 0;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  /* Меню */
+  .game-menu {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 25%;
+    background: rgba(20, 20, 20, 0.95);
+    border-right: 2px solid #777;
+    color: #fff;
+    font-family: "Segoe UI", sans-serif;
+    display: none;
+    z-index: 10;
+    text-align: left;
+    padding: 20px;
+    box-sizing: border-box;
+
+    /* 🔽 добавлена прокрутка */
+    overflow-y: auto;
+  }
+
+  .game-menu h2 {
+    margin-top: 0;
+    font-size: 22px;
+    border-bottom: 1px solid #555;
+    padding-bottom: 10px;
+    text-align: center;
+  }
+
+  .checkbox-group { margin-top: 20px; }
+  .checkbox-group label { display: block; margin-bottom: 10px; font-size: 16px; cursor: pointer; }
+  .checkbox-group input { margin-right: 8px; transform: scale(1.2); }
+
+  .slider-group { margin: 15px 0 25px; display: none; }
+  .slider-group label { display: block; font-size: 15px; margin-bottom: 6px; }
+  .slider-group input[type=range] { width: 100%; }
+  .value { font-size: 14px; color: #ccc; text-align: right; }
+
+  .war-targets { margin-left: 15px; display: none; }
+  .war-targets label { font-size: 14px; }
+
+  /* Тумблер */
+  .toggle {
+    position: relative;
+    width: 50px;
+    height: 24px;
+    -webkit-appearance: none;
+    background: #444;
+    outline: none;
+    border-radius: 20px;
+    transition: background 0.3s;
+    cursor: pointer;
+  }
+  .toggle:checked { background: #00cc66; }
+  .toggle::before {
+    content: "";
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    left: 2px;
+    top: 2px;
+    background: #fff;
+    border-radius: 50%;
+    transition: 0.3s;
+  }
+  .toggle:checked::before { left: 28px; }
+
+  /* Кнопка информации */
+  .info-button {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 12px 18px;
+    font-size: 16px;
+    background: #00aaff;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    box-shadow: 0 0 10px #000;
+    z-index: 20;
+  }
+  .info-button:hover { background: #0088cc; }
+
+  /* Окно информации */
+  .info-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #111;
+    color: #fff;
+    padding: 20px;
+    border-radius: 12px;
+    width: 400px;
+    max-height: 70vh;
+    overflow-y: auto;
+    box-shadow: 0 0 20px #000;
+    display: none;
+    z-index: 30;
+  }
+  .info-modal h2 { margin-top: 0; text-align: center; }
+  .close-btn {
+    display: block;
+    margin: 10px auto 0;
+    padding: 8px 16px;
+    background: #444;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    color: #fff;
+  }
+  .close-btn:hover { background: #666; }
+</style>
+</head>
+<body>
+<canvas id="earth" width="600" height="600"></canvas>
+
+<!-- Меню для каждой страны -->
+<div id="menus"></div>
+
+<!-- Кнопка информации -->
+<button class="info-button" onclick="openInfo()">Информация</button>
+
+<!-- Окно информации -->
+<div id="infoModal" class="info-modal">
+  <h2>Информация о странах</h2>
+  <div id="infoContent"></div>
+  <button class="close-btn" onclick="closeInfo()">Закрыть</button>
+</div>
+
+<script>
+const canvas=document.getElementById('earth'), ctx=canvas.getContext('2d');
+const centerX=canvas.width/2, centerY=canvas.height/2, radius=280;
+
+const labels=[
+  {x:centerX-80,y:centerY+90,name:'Анимеша'},
+  {x:centerX-190,y:centerY+180,name:'Майнкрафтия'},
+  {x:centerX-260,y:centerY-30,name:'Сан Однеас'},
+  {x:centerX+180,y:centerY-100,name:'Евразия'},
+  {x:centerX+290,y:centerY+170,name:'Лохия'},
+  {x:centerX, y:centerY+340,name:'Антарктида'},
+  {x:centerX+70,y:centerY+40,name:'Луциферия'}
+];
+
+const lands=[
+  {x:centerX-120,y:centerY+60,points:[[0,0],[30,-20],[50,10],[40,50],[10,60],[-20,40]]},
+  {x:centerX-220,y:centerY+140,points:[[0,0],[20,-10],[30,20],[10,40],[-20,30]]},
+  {x:centerX-300,y:centerY-80,points:[[0,0],[60,-30],[70,10],[30,50],[-20,40]]},
+  {x:centerX+120,y:centerY-140,points:[[0,0],[80,-40],[90,10],[40,50],[10,40],[-50,20]]},
+  {x:centerX+260,y:centerY+140,points:[[0,0],[30,10],[20,40],[-10,30],[-20,10]]},
+  {x:centerX,y:centerY+300,points:[[-60,0],[60,0],[40,20],[-40,20]]},
+  {x:centerX+50,y:centerY+30,points:[[0,0],[15,-10],[25,5],[20,20],[5,15],[-10,10]],scale:1}
+];
+
+const bigPoints=["Луциферия","Майнкрафтия","Анимеша","Сан Однеас","Евразия","Лохия","Антарктида"];
+
+// Информация о странах
+const countryInfo={
+  "Луциферия":`Население — 130 тыс.<br>Климат — холодный, средняя температура 8°С.<br>Рождаемость — 2.2 ребёнка на семью.<br>Города — отсутствуют.<br>ДНРНВНИ — 3`,
+  "Анимеша":`Население — 3.5 млн.<br>Климат — жаркий, средняя температура 27°С.<br>Рождаемость — 3 ребёнка на семью.<br>Города — Казань и Москва.<br>ДНРНВНИ — 8`,
+  "Евразия":`Население — 7 млн.<br>Климат — умеренный, средняя температура 15°С.<br>Рождаемость — 1.5 ребёнка на семью.<br>Города — Владивосток.<br>ДНРНВНИ — 42`,
+  "Майнкрафтия":`Население — 1 млн.<br>Климат — ветреный, средняя температура 12°С.<br>Рождаемость — 5 детей на семью.<br>Города — Новосибирск.<br>ДНРНВНИ — 3`,
+  "Сан Однеас":`Население — 1.3 млн.<br>Клиат — изменчивый, средняя температура от 12 до 25°С.<br>Рождаемость — 2.4 ребёнка на семью.<br>Города — Санкт-Петербург.<br>ДНРНВНИ — 5`,
+  "Лохия":`Население — 1.3 млн.<br>Климат — изменчивый, средняя температура от 12 до 25°С.<br>Рождаемость — 2.4 ребёнка на семью.<br>Города — Санкт-Петербург.<br>ДНРНВНИ — 5`,
+  "Антарктида":`Население — 1.3 млн.<br>Климат — изменчивый, средняя температура от 12 до 25°С.<br>Рождаемость — 2.4 ребёнка на семью.<br>Города — отсутствуют.<br>ДНРНВНИ — 5`
+};
+
+// Рисуем землю
+function drawStars(count){for(let i=0;i<count;i++){ctx.beginPath();ctx.fillStyle=`rgba(255,255,255,${Math.random()})`;ctx.arc(Math.random()*canvas.width,Math.random()*canvas.height,Math.random()*1.5,0,Math.PI*2);ctx.fill();}}
+function drawCircle(x,y,r,color){ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle=color;ctx.fill();}
+function drawLand(x,y,points,scale=2){ctx.beginPath();ctx.moveTo(points[0][0]*scale+x,points[0][1]*scale+y);for(let i=1;i<points.length;i++)ctx.lineTo(points[i][0]*scale+x,points[i][1]*scale+y);ctx.closePath();ctx.fillStyle="#228B22";ctx.fill();}
+function drawLabel(x,y,text){ctx.beginPath();ctx.fillStyle="#ffcc00";ctx.strokeStyle="#000";ctx.lineWidth=3;ctx.arc(x,y,bigPoints.includes(text)?8:6,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.font="16px Arial";ctx.textBaseline="middle";ctx.textAlign="center";ctx.lineWidth=2;ctx.strokeText(text,x,y-15);ctx.fillText(text,x,y-15);}
+
+function drawEarth(){drawCircle(centerX,centerY,radius,"#1E90FF");lands.forEach(l=>drawLand(l.x,l.y,l.points,l.scale||2));labels.forEach(l=>drawLabel(l.x,l.y,l.name));}
+drawStars(200);drawEarth();
+
+// === Создание меню для каждой страны ===
+const menus=document.getElementById("menus");
+
+function createMenu(region){
+  const div=document.createElement("div");
+  div.className="game-menu";
+  div.id="menu-"+region;
+  div.innerHTML=`
+    <h2>Menu: ${region}</h2>
+    <div class="checkbox-group">
+      <label><input type="checkbox" class="aggressiveCheck"> Сделать агрессивной</label>
+      <div class="slider-group aggressiveSlider">
+        <label>Агрессивность: <span class="value">50</span></label>
+        <input type="range" min="1" max="100" value="50" class="aggressiveRange">
+      </div>
+
+      <label><input type="checkbox" class="peacefulCheck"> Сделать мирной</label>
+      <div class="slider-group peacefulSlider">
+        <label>Дружелюбность: <span class="value">50</span></label>
+        <input type="range" min="1" max="100" value="50" class="peacefulRange">
+      </div>
+
+      <label><input type="checkbox" class="taxToggle"> Повысить налоги</label>
+      <div class="slider-group taxSlider">
+        <label>Налоги: <span class="value">5</span></label>
+        <input type="range" min="1" max="10" value="5" class="taxRange">
+      </div>
+
+      <label><input type="checkbox" class="warCheck" disabled> Объявить войну</label>
+      <div class="war-targets"></div>
+
+      <label>Увеличить пенсию <input type="checkbox" class="toggle pensionToggle"></label>
+      <div class="slider-group pensionSlider">
+        <label>Процент: <span class="value">100</span>%</label>
+        <input type="range" min="1" max="1000" value="100" class="pensionRange">
+      </div>
+
+      <label>Увеличить зарплату <input type="checkbox" class="toggle salaryToggle"></label>
+      <div class="slider-group salarySlider">
+        <label>Процент: <span class="value">100</span>%</label>
+        <input type="range" min="1" max="1000" value="100" class="salaryRange">
+      </div>
+    </div>
+  `;
+  menus.appendChild(div);
+
+  // Навешиваем обработчики
+  const aggressiveCheck=div.querySelector(".aggressiveCheck"),
+        aggressiveSlider=div.querySelector(".aggressiveSlider"),
+        aggressiveRange=div.querySelector(".aggressiveRange"),
+        aggressiveValue=aggressiveSlider.querySelector(".value"),
+        peacefulCheck=div.querySelector(".peacefulCheck"),
+        peacefulSlider=div.querySelector(".peacefulSlider"),
+        peacefulRange=div.querySelector(".peacefulRange"),
+        peacefulValue=peacefulSlider.querySelector(".value"),
+        taxToggle=div.querySelector(".taxToggle"),
+        taxSlider=div.querySelector(".taxSlider"),
+        taxRange=div.querySelector(".taxRange"),
+        taxValue=taxSlider.querySelector(".value"),
+        warCheck=div.querySelector(".warCheck"),
+        warTargets=div.querySelector(".war-targets"),
+        pensionToggle=div.querySelector(".pensionToggle"),
+        pensionSlider=div.querySelector(".pensionSlider"),
+        pensionRange=div.querySelector(".pensionRange"),
+        pensionValue=pensionSlider.querySelector(".value"),
+        salaryToggle=div.querySelector(".salaryToggle"),
+        salarySlider=div.querySelector(".salarySlider"),
+        salaryRange=div.querySelector(".salaryRange"),
+        salaryValue=salarySlider.querySelector(".value");
+
+  function bindSlider(check,slider,range,value){
+    if(check) check.addEventListener("change",()=>slider.style.display=check.checked?"block":"none");
+    if(range) range.addEventListener("input",()=>value.textContent=range.value);
+  }
+  bindSlider(aggressiveCheck,aggressiveSlider,aggressiveRange,aggressiveValue);
+  bindSlider(peacefulCheck,peacefulSlider,peacefulRange,peacefulValue);
+  bindSlider(taxToggle,taxSlider,taxRange,taxValue);
+  bindSlider(pensionToggle,pensionSlider,pensionRange,pensionValue);
+  bindSlider(salaryToggle,salarySlider,salaryRange,salaryValue);
+
+  aggressiveRange.addEventListener("input",()=>{
+    warCheck.disabled=aggressiveRange.value<=50;
+    if(warCheck.disabled){warCheck.checked=false;warTargets.style.display="none";}
+  });
+
+  warCheck.addEventListener("change",()=>{
+    warTargets.innerHTML="";
+    if(warCheck.checked){
+      warTargets.style.display="block";
+      bigPoints.filter(r=>r!==region).forEach(r=>{
+        const lbl=document.createElement("label");
+        lbl.innerHTML=`<input type="checkbox"> ${r}`;
+        warTargets.appendChild(lbl);
+      });
+    } else warTargets.style.display="none";
+  });
+}
+
+// создаём меню для всех стран
+bigPoints.forEach(region=>createMenu(region));
+
+// === Клик по точкам ===
+canvas.addEventListener("click",e=>{
+  const rect=canvas.getBoundingClientRect(),clickX=e.clientX-rect.left,clickY=e.clientY-rect.top;
+  let clicked=false;
+  labels.forEach(l=>{
+    const dx=clickX-l.x,dy=clickY-l.y,dist=Math.sqrt(dx*dx+dy*dy);
+    if(bigPoints.includes(l.name)&&dist<=10){
+      document.querySelectorAll(".game-menu").forEach(m=>m.style.display="none");
+      document.getElementById("menu-"+l.name).style.display="block";
+      clicked=true;
+    }
+  });
+  if(!clicked) document.querySelectorAll(".game-menu").forEach(m=>m.style.display="none");
+});
+
+// === Информация ===
+function openInfo(){
+  const infoContent=document.getElementById("infoContent");
+  infoContent.innerHTML="";
+  for(const c in countryInfo){
+    infoContent.innerHTML+=`<h3>${c}</h3><p>${countryInfo[c]}</p><hr>`;
+  }
+  document.getElementById("infoModal").style.display="block";
+}
+function closeInfo(){document.getElementById("infoModal").style.display="none";}
+</script>
+</body>
+</html>
